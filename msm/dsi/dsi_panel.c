@@ -3212,6 +3212,9 @@ static int dsi_panel_parse_misc_features(struct dsi_panel *panel)
 	panel->lp11_init = utils->read_bool(utils->data,
 			"qcom,mdss-dsi-lp11-init");
 
+	panel->pcd_check = utils->read_bool(utils->data,
+			"qcom,mdss-dsi-pcd-check");
+
 	panel->reset_gpio_always_on = utils->read_bool(utils->data,
 			"qcom,platform-reset-gpio-always-on");
 
@@ -5897,6 +5900,11 @@ int dsi_panel_pre_prepare(struct dsi_panel *panel)
 
 	if (!panel) {
 		DSI_ERR("invalid params\n");
+		return -EINVAL;
+	}
+
+	if (panel->pcd_check == 2) {
+		DSI_ERR("PCD check fail , dont power up!\n");
 		return -EINVAL;
 	}
 

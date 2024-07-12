@@ -227,6 +227,61 @@ void dsi_rect_intersect(const struct dsi_rect *r1,
 	}
 }
 
+void dsi_display_pcd_check(struct drm_connector *connector,struct dsi_display *display)
+{
+
+	u8 *rx_tmp = NULL;
+	int rx_len = 0;
+	char pcd_buf[256] = {0};
+	unsigned char buffer[10] = {0x02,0x06,0x01,0x00,0x01,0x00,0x00,0x01,0xEE};
+	//unsigned char cmd_buffer[10] = {0x39,0x01,0x00,0x00,0x00,0x00,0x03,0xF0,0x5A,0x5A};
+
+	if(!display){
+		DSI_ERR("%s:display null!",__func__);
+		return;
+	}
+
+	DSI_DEBUG("%s:PCD check status:%d",__func__,display->panel->pcd_check);//status 0:pcd close, status 1:pcd open, status 2:pcd trigger.
+
+	rx_tmp = kzalloc(MAX_CMD_RECEIVE_SIZE,GFP_KERNEL);
+	if(!rx_tmp){
+
+		DSI_ERR("%s:rx_tmp kzalloc mem failed!",__func__);
+		return;
+	}
+
+	memset(rx_tmp,0x0,MAX_CMD_RECEIVE_SIZE);
+	//dsi_display_cmd_transfer(connector,display,cmd_buffer,10);
+	rx_len = dsi_display_cmd_receive(display,buffer + 1,PCD_CHECK_READ_CMD_LEN - 1,rx_tmp,buffer[0]);
+	DSI_DEBUG("%s:rx_len=%d,rx_tmp=%d",__func__,rx_len,*rx_tmp);
+
+	if(rx_len <= 0){
+		DSI_ERR("%s read PCD reg failed\n",__func__);
+		memset(pcd_buf, '0',buffer[0]);
+		memset(pcd_buf, '0',buffer[1]);
+	} else {
+		memcpy(pcd_buf, rx_tmp, buffer[0]);
+		memcpy(pcd_buf, rx_tmp, buffer[1]);
+	}
+
+
+	if((pcd_buf[0] != 0x00) || (pcd_buf[1] != 0x00)){
+
+		DSI_ERR("%s:PCD check fail!! , rx_buf0=%x,rx_buf1=%x",__func__,pcd_buf[0],pcd_buf[1]);
+		dsi_panel_post_unprepare(display->panel);
+		display->panel->pcd_check = 2;// pcd flag trigger ! panel dont need to power up.
+
+	}else{
+		DSI_DEBUG("%s:PCD check OK",__func__);
+		display->panel->pcd_check = 1;
+
+	}
+
+	kfree(rx_tmp);
+	rx_tmp = NULL;
+
+}
+
 int dsi_display_set_backlight(struct drm_connector *connector,
 		void *display, u32 bl_lvl)
 {
@@ -1125,6 +1180,11 @@ int dsi_display_check_status(struct drm_connector *connector, void *display,
 		}
 	} else {
 		DSI_WARN("Unsupported check status mode: %d\n", status_mode);
+		panel->esd_config.esd_enabled = false;
+	}
+
+	if (panel->pcd_check == 2) {
+		DSI_ERR("PCD check fail , esd close!\n");
 		panel->esd_config.esd_enabled = false;
 	}
 

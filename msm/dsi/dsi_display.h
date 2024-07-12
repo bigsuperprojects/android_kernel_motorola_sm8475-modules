@@ -27,6 +27,7 @@
 #define DSI_CLIENT_NAME_SIZE		20
 #define MAX_CMDLINE_PARAM_LEN	 512
 #define MAX_CMD_PAYLOAD_SIZE	256
+#define PCD_CHECK_READ_CMD_LEN       256
 
 #define DSI_MODE_MATCH_ACTIVE_TIMINGS (1 << 0)
 #define DSI_MODE_MATCH_PORCH_TIMINGS (1 << 1)
@@ -318,7 +319,7 @@ struct dsi_display {
 int dsi_display_dev_probe(struct platform_device *pdev);
 int dsi_display_dev_remove(struct platform_device *pdev);
 void dsi_display_dev_shutdown(struct platform_device *pdev);
-
+void dsi_display_pcd_check(struct drm_connector *connector,struct dsi_display *display);
 /**
  * dsi_display_get_num_of_displays() - returns number of display devices
  *				       supported.

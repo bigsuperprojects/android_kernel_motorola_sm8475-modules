@@ -2826,6 +2826,7 @@ static void sde_connector_check_status_work(struct work_struct *work)
 	struct sde_connector *conn;
 	int rc = 0;
 	struct device *dev;
+	struct dsi_display *display;
 
 	conn = container_of(to_delayed_work(work),
 			struct sde_connector, status_work);
@@ -2833,7 +2834,7 @@ static void sde_connector_check_status_work(struct work_struct *work)
 		SDE_ERROR("not able to get connector object\n");
 		return;
 	}
-
+	display = conn->display;
 	mutex_lock(&conn->lock);
 	dev = conn->base.dev->dev;
 
@@ -2849,6 +2850,10 @@ static void sde_connector_check_status_work(struct work_struct *work)
 
 	if (rc > 0) {
 		u32 interval;
+
+		if(display->panel->pcd_check){
+			dsi_display_pcd_check(&conn->base,conn->display);
+		}
 
 		SDE_DEBUG("esd check status success conn_id: %d enc_id: %d\n",
 				conn->base.base.id, conn->encoder->base.id);
