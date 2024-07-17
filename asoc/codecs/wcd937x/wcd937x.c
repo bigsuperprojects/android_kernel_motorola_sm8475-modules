@@ -29,6 +29,11 @@
 #include "internal.h"
 #include "asoc/bolero-slave-internal.h"
 
+#ifdef FCNT_GREEN_RUST
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
+#endif
+
 #define WCD9370_VARIANT 0
 #define WCD9375_VARIANT 5
 #define WCD937X_VARIANT_ENTRY_SIZE 32
@@ -3629,6 +3634,11 @@ static int wcd937x_add_slave_components(struct device *dev,
 {
 	struct device_node *np, *rx_node, *tx_node;
 
+#ifdef FCNT_GREEN_RUST
+	int EAR_DET_EN = 0; //gpio108
+	int EAR_DET_IN = 0; //gpio95
+#endif
+
 	np = dev->of_node;
 
 	rx_node = of_parse_phandle(np, "qcom,rx-slave", 0);
@@ -3652,6 +3662,28 @@ static int wcd937x_add_slave_components(struct device *dev,
 			wcd937x_release_of,
 			wcd937x_compare_of,
 			tx_node);
+
+#ifdef FCNT_GREEN_RUST
+	EAR_DET_EN = of_get_named_gpio(np,"ear_det_en-gpios",0);
+	if (!gpio_is_valid(EAR_DET_EN)) {
+		dev_err(dev, "EAR_DET_EN is invalid\n");
+		goto green_exit;
+	}
+	gpio_request(EAR_DET_EN, "EAR_DET_EN");
+	gpio_direction_output(EAR_DET_EN, 1);
+	gpio_set_value(EAR_DET_EN, 0);
+
+	EAR_DET_IN = of_get_named_gpio(np,"ear_det_in-gpios",0);
+	if (!gpio_is_valid(EAR_DET_IN)) {
+		dev_err(dev, "EAR_DET_IN is invalid\n");
+		goto green_exit;
+	}
+	gpio_request(EAR_DET_IN, "EAR_DET_IN");
+	gpio_direction_output(EAR_DET_IN, 1);
+	gpio_set_value(EAR_DET_IN, 1);
+green_exit:
+#endif
+
 	return 0;
 }
 
