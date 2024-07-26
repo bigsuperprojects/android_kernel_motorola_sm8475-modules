@@ -472,6 +472,7 @@ struct dsi_panel {
 	bool rm690a0_backlight_config;
 	bool check_pcd;
 	int panelPcdCheck_enable;
+	bool hbm_en;
 
 	/* dsi cmd set delay when sleep in */
 	u32 dsi_cmd_set_off_delay;

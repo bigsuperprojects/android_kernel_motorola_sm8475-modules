@@ -6917,6 +6917,64 @@ static ssize_t panelDC_show(struct device *device,
 	    return scnprintf(buf, PAGE_SIZE, "%s\n", "Not a DSI panel");
 }
 
+static ssize_t dsi_display_hbm_show(struct device *device,
+        struct device_attribute *attr, char *buf)
+{
+	struct dsi_display *dsi_display;
+	struct drm_connector *conn;
+	struct sde_connector *sde_conn;
+	conn = dev_get_drvdata(device);
+	sde_conn = to_sde_connector(conn);
+	dsi_display = sde_conn->display;
+
+	if (dsi_display == NULL || dsi_display->panel == NULL) {
+		DSI_ERR("%s: invalid display\n", __func__);
+		return -EIO;
+	}
+	return scnprintf(buf, PAGE_SIZE, "%d\n", dsi_display->panel->hbm_en);
+}
+
+
+static ssize_t dsi_display_hbm_store(struct device *device,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct dsi_display *dsi_display;
+	struct dsi_panel *panel;
+	struct drm_connector *conn;
+	struct sde_connector *sde_conn;
+	struct msm_param_info *param_info = NULL;
+	param_info = kzalloc(MAX_CMD_RECEIVE_SIZE,GFP_KERNEL);
+	param_info->value = 1;
+	conn = dev_get_drvdata(device);
+	sde_conn = to_sde_connector(conn);
+	dsi_display = sde_conn->display;
+	param_info ->param_conn_idx = CONNECTOR_PROP_HBM;
+	param_info ->param_idx = PARAM_HBM_ID;
+
+	if (dsi_display == NULL || dsi_display->panel == NULL) {
+		DSI_ERR("%s: invalid display\n", __func__);
+		kfree(param_info);
+		return -EIO;
+	}
+
+	panel = dsi_display->panel;
+	if (kstrtouint(buf, 0, &param_info->value)) {
+		DSI_ERR("%s: failed to convert when write hbm_en.\n", __func__);
+		return -EFAULT;
+	}
+
+	if (param_info->value < 0 || param_info->value > 1) {
+		DSI_ERR("%s: invalid mode when write hbm_en %u.\n", __func__, param_info->value);
+		return -EINVAL;
+	}
+
+	panel->hbm_en = param_info->value;
+	DSI_DEBUG("%s: invalid mode when write hbm_en %u.\n", __func__, param_info->value);
+	dsi_panel_set_param(panel, param_info);
+	kfree(param_info);
+	return count;
+}
+
 static ssize_t panelPcdCheck_store(struct device *device,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -6996,6 +7054,7 @@ static DEVICE_ATTR_RO(panelBLExponent);
 static DEVICE_ATTR_RO(panelCellId);
 static DEVICE_ATTR_RO(panelDC);
 static DEVICE_ATTR_RW(panelPcdCheck);
+static DEVICE_ATTR_RW(dsi_display_hbm);
 static DEVICE_ATTR_RO(panelDeclare);
 
 static const struct attribute *sde_conn_panel_attrs[] = {
@@ -7008,6 +7067,7 @@ static const struct attribute *sde_conn_panel_attrs[] = {
 	&dev_attr_panelCellId.attr,
 	&dev_attr_panelDC.attr,
 	&dev_attr_panelPcdCheck.attr,
+	&dev_attr_dsi_display_hbm.attr,
 	&dev_attr_panelDeclare.attr,
 	NULL
 };
