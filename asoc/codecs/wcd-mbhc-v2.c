@@ -1134,6 +1134,41 @@ done:
 	pr_debug("%s: leave\n", __func__);
 }
 
+#ifdef FCNT_GREEN_RUST
+static int EAR_DET_EN = 0; //gpio108
+static int EAR_DET_IN = 0; //gpio95
+static long irq_count = 0;
+static long ear_en_value = 0;
+static long ear_in_value = 0;
+#define IRQ_MAX 99999
+
+int green_rust_gpio_get(struct snd_kcontrol * kcontrol, struct snd_ctl_elem_value * ucontrol)
+{
+	ucontrol->value.integer.value[0] = ear_in_value;
+	ucontrol->value.integer.value[1] = ear_en_value;
+	ucontrol->value.integer.value[2] = irq_count;
+	pr_debug("func:%s ear_in_value:%ld ear_en_value:%ld irq_count:%ld\n",
+		__func__, ear_in_value, ear_en_value, irq_count);
+	return 0;
+}
+
+int green_rust_gpio_put(struct snd_kcontrol * kcontrol, struct snd_ctl_elem_value * ucontrol)
+{
+	ear_in_value = ucontrol->value.integer.value[0];
+	ear_en_value = ucontrol->value.integer.value[1];
+
+	gpio_set_value(EAR_DET_IN, !!ear_in_value);
+	gpio_set_value(EAR_DET_EN, !!ear_en_value);
+
+	pr_debug("func:%s EAR_DET_IN_value:%d EAR_DET_EN_value:%d\n",
+		__func__, !!ear_in_value, !!ear_en_value);
+	return 0;
+}
+
+static struct snd_kcontrol_new green_rust_gpio = (struct snd_kcontrol_new) \
+		SOC_SINGLE_MULTI_EXT("green_rust_gpio", 0, 0, IRQ_MAX, 0, 3, green_rust_gpio_get, green_rust_gpio_put);
+#endif
+
 static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 {
 	int r = IRQ_HANDLED;
@@ -1148,6 +1183,11 @@ static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 		pr_warn("%s: failed to hold suspend\n", __func__);
 		r = IRQ_NONE;
 	} else {
+#ifdef FCNT_GREEN_RUST
+		irq_count++;
+		if(irq_count > IRQ_MAX)
+			irq_count = 0;
+#endif
 		/* Call handler */
 		wcd_mbhc_swch_irq_handler(mbhc);
 		mbhc->mbhc_cb->lock_sleep(mbhc, false);
@@ -1868,6 +1908,31 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_component *component,
 		mbhc->moist_iref = hph_moist_config[1];
 		mbhc->moist_rref = hph_moist_config[2];
 	}
+
+#ifdef FCNT_GREEN_RUST
+	EAR_DET_EN = of_get_named_gpio(card->dev->of_node,"ear_det_en-gpios",0);
+	if (!gpio_is_valid(EAR_DET_EN)) {
+		dev_err(card->dev, "EAR_DET_EN is invalid\n");
+		goto green_exit;
+	}
+	gpio_request(EAR_DET_EN, "EAR_DET_EN");
+	gpio_direction_output(EAR_DET_EN, 1);
+	gpio_set_value(EAR_DET_EN, 0);
+	ear_en_value = 0;
+
+	EAR_DET_IN = of_get_named_gpio(card->dev->of_node,"ear_det_in-gpios",0);
+	if (!gpio_is_valid(EAR_DET_IN)) {
+		dev_err(card->dev, "EAR_DET_IN is invalid\n");
+		goto green_exit;
+	}
+	gpio_request(EAR_DET_IN, "EAR_DET_IN");
+	gpio_direction_output(EAR_DET_IN, 1);
+	gpio_set_value(EAR_DET_IN, 1);
+	ear_in_value = 1;
+
+	snd_soc_add_component_controls(component, &green_rust_gpio, 1);
+green_exit:
+#endif
 
 	mbhc->in_swch_irq_handler = false;
 	mbhc->current_plug = MBHC_PLUG_TYPE_NONE;
