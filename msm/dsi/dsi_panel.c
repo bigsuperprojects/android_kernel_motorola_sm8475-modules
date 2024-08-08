@@ -826,6 +826,7 @@ static int mipi_dsi_dcs_subtype_set_display_brightness(struct mipi_dsi_device *d
 	return mipi_dsi_dcs_write(dsi, bl_dcs_subtype, payload, sizeof(payload));
 }
 
+//MMI_STOPSHIP<display>:Need to change to remap table later
 static int dsi_panel_update_backlight(struct dsi_panel *panel,
 	u32 bl_lvl)
 {
@@ -862,6 +863,44 @@ static int dsi_panel_update_backlight(struct dsi_panel *panel,
 		if (bl->bl_2bytes_enable) {
 		        bl_lvl_2bytes =  ((bl_lvl & 0xff00) >> 8) | ((bl_lvl & 0xff) << 8);
 		        rc = mipi_dsi_dcs_set_display_brightness(dsi, bl_lvl_2bytes);
+		} else if (panel->bl_lvl_formula) {
+			ssize_t err;
+			int i;
+			u16 hal_lvl[14] = {452,607,701,981,1464,1619,1682,
+						1806,2335,3238,3534,3690,3939,4095};
+			u16 sub_lvl[14] = {109,102,107,97,84,74,70,
+						77,61,20,20,10,10,0};
+			u8 payload[2] = { 0,0 };
+
+			for (i=0; i<15; i++) {
+				if (bl_lvl == 0) {
+					break;
+				} else if (bl_lvl > 0 && bl_lvl<= 218) {
+					bl_lvl = 287;
+					break;
+				} else if (bl_lvl > 218 && bl_lvl<= 312) {
+					bl_lvl = 302;
+					break;
+				} else if (bl_lvl > 312 && bl_lvl<= 452) {
+					bl_lvl = 335;
+					break;
+				} else if (bl_lvl <= hal_lvl[i]) {
+					bl_lvl -= sub_lvl[i];
+					break;
+				}
+			}
+
+			DSI_INFO("[drm] brightness is %d\n",bl_lvl);
+
+			payload[0] = bl_lvl >>  8;
+			payload[1] = bl_lvl & 0xff;
+
+			err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
+							payload, sizeof(payload));
+			if (err < 0)
+				return err;
+
+			return 0;
 		} else
 			rc = mipi_dsi_dcs_set_display_brightness(dsi, bl_lvl);
 	}
@@ -3214,6 +3253,9 @@ static int dsi_panel_parse_misc_features(struct dsi_panel *panel)
 
 	panel->pcd_check = utils->read_bool(utils->data,
 			"qcom,mdss-dsi-pcd-check");
+
+	panel->bl_lvl_formula = utils->read_bool(utils->data,
+			"qcom,mdss-bl-lvl-formula");
 
 	panel->reset_gpio_always_on = utils->read_bool(utils->data,
 			"qcom,platform-reset-gpio-always-on");

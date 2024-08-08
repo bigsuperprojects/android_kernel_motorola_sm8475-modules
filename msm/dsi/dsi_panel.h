@@ -427,6 +427,7 @@ struct dsi_panel {
 	u32 lm_count;
 
 	int pcd_check;
+	int bl_lvl_formula;
 	int panel_test_gpio;
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;
