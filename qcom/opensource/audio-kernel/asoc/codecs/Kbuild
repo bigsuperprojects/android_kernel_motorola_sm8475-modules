@@ -225,7 +225,7 @@ INCS +=		$(COMMON_INC) \
 
 EXTRA_CFLAGS += $(INCS)
 
-ifneq (,$(filter kobe%, $(TARGET_PRODUCT)))
+ifneq (,$(findstring kobe,$(TARGET_PRODUCT)))
        EXTRA_CFLAGS += -DFCNT_GREEN_RUST
 endif
 
