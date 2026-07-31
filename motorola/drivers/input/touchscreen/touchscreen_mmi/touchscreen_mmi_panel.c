@@ -200,6 +200,8 @@ int ts_mmi_parse_dt(struct ts_mmi_dev *touch_cdev,
 		char *s, *d;
 		int rc;
 		u64 panel_ver, panel_id;
+		char *underscore;
+		size_t len;
 
 		if (!ppdata->ctrl_dsi) {
 			panel_name_prop = PRIM_PANEL_NAME;
@@ -214,14 +216,10 @@ int ts_mmi_parse_dt(struct ts_mmi_dev *touch_cdev,
 		rc = of_property_read_string(chosen, panel_name_prop,
 					(const char **)&supplier);
 		if (rc || !strncmp(supplier, "none", 4)) {
-			dev_err(DEV_TS, "%s: cannot read %s %d\n",
+			dev_err(DEV_TS, "%s: cannot read %s %d, deferring probe...\n",
 					__func__, panel_name_prop, rc);
-			if (strncmp(panel_name_prop, PRIM_PANEL_NAME, strlen(panel_name_prop)) == 0) {
-				strncpy(touch_cdev->panel_supplier, "dummy", sizeof(touch_cdev->panel_supplier));
-			} else {
-				strncpy(touch_cdev->panel_supplier, "dummy_s", sizeof(touch_cdev->panel_supplier));
-			}
-			goto done;
+			of_node_put(chosen); // Clean up the reference pointer safely before exiting
+			return -EPROBE_DEFER; // <-- CHANGE THIS FROM GOTO DONE TO PROBE DEFER
 		}
 		dev_info(DEV_TS, "%s: %s %s\n",
 					__func__, panel_name_prop, supplier);
@@ -229,20 +227,33 @@ int ts_mmi_parse_dt(struct ts_mmi_dev *touch_cdev,
 		/* skip dsi_ part */
 		if (!strncmp(supplier, "dsi_", 4))
 			s += 4;
+		
 		d = touch_cdev->panel_supplier;
-		while (*s != '_') *d++ = *s++;
-
+		
+		// Perform runtime string checks safely
+		underscore = strchr(s, '_');
+		if (underscore) {
+			len = underscore - s;
+			if (len >= sizeof(touch_cdev->panel_supplier))
+				len = sizeof(touch_cdev->panel_supplier) - 1;
+			memcpy(d, s, len);
+			d[len] = '\0';
+		} else {
+			strlcpy(d, s, sizeof(touch_cdev->panel_supplier));
+		}
 		rc = of_property_read_u64(chosen, panel_id_prop, &panel_id);
 		if (rc) {
-			dev_err(DEV_TS, "%s: cannot read %s %d\n",
+			dev_err(DEV_TS, "%s: cannot read %s %d, deferring probe...\n",
 					__func__, panel_id_prop, rc);
-			goto done;
+			of_node_put(chosen); // Clean up the reference pointer safely before exiting
+			return -EPROBE_DEFER; // <-- CHANGE THIS FROM GOTO DONE TO PROBE DEFER
 		}
 		rc = of_property_read_u64(chosen, panel_ver_prop, &panel_ver);
 		if (rc) {
-			dev_err(DEV_TS, "%s: cannot read %s %d\n",
+			dev_err(DEV_TS, "%s: cannot read %s %d, deferring probe...\n",
 					__func__, panel_ver_prop, rc);
-			goto done;
+			of_node_put(chosen); // Clean up the reference pointer safely before exiting
+			return -EPROBE_DEFER; // <-- CHANGE THIS FROM GOTO DONE TO PROBE DEFER
 		}
 		of_node_put(chosen);
 		dev_dbg(DEV_TS, "%s: [%s] id=%llx ver=%llx\n",

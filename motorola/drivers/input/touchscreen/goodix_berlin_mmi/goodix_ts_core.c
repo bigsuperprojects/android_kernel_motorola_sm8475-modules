@@ -1217,6 +1217,8 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 	int i;
 	static uint8_t touchdown[GOODIX_MAX_TOUCH];
 	struct goodix_ts_core *core_data = goodix_modules.core_data;
+	u32 scaled_x;
+	u32 scaled_y;
 
 #ifdef CONFIG_GTP_FOD
 	struct goodix_ts_event *ts_event = &goodix_modules.core_data->ts_event;
@@ -1287,12 +1289,17 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 #else
 			input_mt_report_slot_state(dev, MT_TOOL_FINGER, true);
 #endif
-			input_report_abs(dev, ABS_MT_POSITION_X,
-					touch_data->coords[i].x);
-			input_report_abs(dev, ABS_MT_POSITION_Y,
-					touch_data->coords[i].y);
-			input_report_abs(dev, ABS_MT_TOUCH_MAJOR,
-					touch_data->coords[i].w);
+			// Apply exact 14-bit proportional scaling down to target 1080x2400 bounding box
+			scaled_x = ((u32)touch_data->coords[i].x * 1080) / 8192;
+			scaled_y = ((u32)touch_data->coords[i].y * 2400) / 19264;
+
+			// Protect against out-of-bounds boundary array overflows
+			if (scaled_x > 1080) scaled_x = 1080;
+			if (scaled_y > 2400) scaled_y = 2400;
+
+			input_report_abs(dev, ABS_MT_POSITION_X, scaled_x);
+			input_report_abs(dev, ABS_MT_POSITION_Y, scaled_y);
+			input_report_abs(dev, ABS_MT_TOUCH_MAJOR, touch_data->coords[i].w);
 #ifdef CONFIG_MOTO_DDA_PASSIVESTYLUS
 			input_report_abs(dev, ABS_MT_PRESSURE,
 					touch_data->coords[i].w);

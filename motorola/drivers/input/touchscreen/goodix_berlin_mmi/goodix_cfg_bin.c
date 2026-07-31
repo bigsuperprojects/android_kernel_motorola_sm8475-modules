@@ -125,8 +125,8 @@ static int goodix_read_cfg_bin(struct device *dev, const char *cfg_name,
 	if (firmware->size <= 0) {
 		ts_err("request_firmware, cfg_bin length ERROR,len:%zu",
 		       firmware->size);
-		ret = -EINVAL;
-		goto exit;
+//		ret = -EINVAL;
+//		goto exit;
 	}
 
 	cfg_bin->bin_data_len = firmware->size;
