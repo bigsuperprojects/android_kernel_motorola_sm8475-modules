@@ -1290,7 +1290,7 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 			input_mt_report_slot_state(dev, MT_TOOL_FINGER, true);
 #endif
 			// Apply exact 14-bit proportional scaling down to target 1080x2400 bounding box
-			scaled_x = ((u32)touch_data->coords[i].x * 1080) / 8192;
+			scaled_x = ((u32)touch_data->coords[i].x * 1080) / 8800; //tweaked the scaling, 8192 is not all the way to the right edge
 			scaled_y = ((u32)touch_data->coords[i].y * 2400) / 19264;
 
 			// Protect against out-of-bounds boundary array overflows
@@ -2362,7 +2362,8 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 
 #if defined(CONFIG_FB) && !defined(CONFIG_INPUT_TOUCHSCREEN_MMI)
 	cd->fb_notifier.notifier_call = goodix_ts_fb_notifier_callback;
-	if (fb_register_client(&cd->fb_notifier))
+	if (fb_register_cli
+	ent(&cd->fb_notifier))
 		ts_err("Failed to register fb notifier client:%d", ret);
 #endif
 	/* create sysfs files */
