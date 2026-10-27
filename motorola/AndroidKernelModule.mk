@@ -183,11 +183,15 @@ ifneq ($(USE_CLANG_FOR_MODULES),)
 $(KBUILD_TARGET): $(TARGET_PREBUILT_INT_KERNEL)
 	@mkdir -p $(kbuild_out_dir)
 	$(hide) cp -f $(local_path)/Kbuild $(kbuild_out_dir)/Kbuild
+	# FIX 1: Mirror subdirectories for the Clang compilation path
+	$(hide) cd $(local_path) && find . -type d -not -path '*/.*' -exec mkdir -p $(kbuild_out_dir)/{} \;
 	$(MAKE) -C $(TARGET_KERNEL_SOURCE) M=$(KERNEL_TO_BUILD_ROOT_OFFSET)$(local_path) O=$(KERNEL_TO_BUILD_ROOT_OFFSET)$(KERNEL_OUT) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE) $(real_cc) $(KERNEL_CFLAGS) modules $(kbuild_options) ANDROID_BUILD_TOP=$$(pwd) TOP=$$(pwd)
 else
 $(KBUILD_TARGET): $(TARGET_PREBUILT_INT_KERNEL)
 	@mkdir -p $(kbuild_out_dir)
 	$(hide) cp -f $(local_path)/Kbuild $(kbuild_out_dir)/Kbuild
+	# FIX 2: Mirror subdirectories for the fallback compilation path
+	$(hide) cd $(local_path) && find . -type d -not -path '*/.*' -exec mkdir -p $(kbuild_out_dir)/{} \;
 	$(MAKE) -C $(TARGET_KERNEL_SOURCE) M=$(KERNEL_TO_BUILD_ROOT_OFFSET)$(local_path) O=$(KERNEL_TO_BUILD_ROOT_OFFSET)$(KERNEL_OUT) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE) $(KERNEL_CFLAGS) modules $(kbuild_options) TOP=$$(pwd)
 endif
 
